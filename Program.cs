@@ -1,77 +1,71 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore;
-using Models;
+﻿using Models;
 using Repositories;
 
-namespace EF
+
+class Program
 {
-    class Program
+    static void Main()
     {
-        static void Main(string[] args)
+        using (var context = new AppContext())
         {
-            // Удалим и пересоздадим базу данных (только для разработки!)
-            using (var context = new AppContext())
-            {
-                context.Database.EnsureDeleted();
-                context.Database.EnsureCreated();
-            }
+            context.Database.EnsureDeleted();
+            context.Database.EnsureCreated();
+        }
 
-            // Репозитории
-            var userRepo = new UserRepository();
-            var bookRepo = new BookRepository();
+        var userRepo = new UserRepository();
+        var bookRepo = new BookRepository();
 
-            // Добавим пользователя
-            var user = new User { Name = "Александр", Email = "alex@mail.com" };
+        // Добавим пользователей
+        var users = new List<User>
+        {
+            new User { Name = "Александр Пушкин", Email = "pushkin@mail.com" },
+            new User { Name = "Лев Толстой", Email = "tolstoy@mail.com" },
+            new User { Name = "Фёдор Достоевский", Email = "dostoevsky@mail.com" },
+            new User { Name = "Антон Чехов", Email = "chekhov@mail.com" }
+        };
+
+        foreach (var user in users)
             userRepo.Add(user);
 
-            // Обновим имя
-            userRepo.UpdateName(user.Id, "Александр Пушкин");
+        // Добавим книги
+        var books = new List<Book>
+        {
+            new Book { Title = "Евгений Онегин", Year = 1833, Author = "Александр Пушкин", Genre = "Роман", UserId = users[0].Id },
+            new Book { Title = "Капитанская дочка", Year = 1836, Author = "Александр Пушкин", Genre = "Исторический роман", UserId = users[0].Id },
+            new Book { Title = "Война и мир", Year = 1869, Author = "Лев Толстой", Genre = "Роман", UserId = users[1].Id },
+            new Book { Title = "Анна Каренина", Year = 1877, Author = "Лев Толстой", Genre = "Роман", UserId = users[1].Id },
+            new Book { Title = "Преступление и наказание", Year = 1866, Author = "Фёдор Достоевский", Genre = "Роман", UserId = users[2].Id },
+            new Book { Title = "Идиот", Year = 1869, Author = "Фёдор Достоевский", Genre = "Роман", UserId = users[2].Id },
+            new Book { Title = "Вишнёвый сад", Year = 1904, Author = "Антон Чехов", Genre = "Пьеса", UserId = users[3].Id },
+            new Book { Title = "Палата №6", Year = 1892, Author = "Антон Чехов", Genre = "Повесть", UserId = null } // не на руках
+        };
 
-            // Добавим книгу и выдадим её пользователю
-            var book = new Book
-            {
-                Title = "Евгений Онегин",
-                Year = 1833,
-                Author = "А.С. Пушкин",
-                Genre = "Роман",
-                UserId = user.Id // Книга на руках у пользователя
-            };
+        foreach (var book in books)
             bookRepo.Add(book);
 
-            // Обновим год выпуска книги
-            bookRepo.UpdateYear(book.Id, 1837);
+        // Получаем список книг определённого жанра и года
+        var booksByGenre = bookRepo.GetBooksByGenreAndYearRange("Роман", 1800, 1900);
+        Console.WriteLine("\nКниги, жанр 'Роман', года 1800-1900:");
+        foreach (var book in booksByGenre)
+            Console.WriteLine($"{book.Title} ({book.Year})");
 
-            // Вывод пользователей
-            Console.WriteLine("Пользователи:");
-            var users = userRepo.GetAll();
-            if (users.Count > 0)
-            {
-                foreach (var u in users)
-                {
-                    Console.WriteLine($"{u.Id}: {u.Name} — {u.Email}");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Нет пользователей.");
-            }
+        // Проверим, есть ли книга определённого автора с названием
+        bool exists = bookRepo.BookExists("Александр Пушкин", "Евгений Онегин");
+        Console.WriteLine($"\nЕсть ли книга 'Евгений Онегин' автором 'Александр Пушкин'? {exists}");
 
-            // Вывод книг
-            Console.WriteLine("\nКниги:");
-            var books = bookRepo.GetAll();
-            if (books.Count > 0)
-            {
-                foreach (var b in books)
-                {
-                    Console.WriteLine($"{b.Id}: {b.Title} — {b.Year}, Автор: {b.Author}, Жанр: {b.Genre}, На руках у пользователя ID: {b.UserId}");
-                }
-            }
-            else
-            {
-                Console.WriteLine("Нет книг.");
-            }
+        // Получим последнюю вышедшую книгу
+        var lastBook = bookRepo.GetLastReleasedBook();
+        Console.WriteLine($"\nПоследняя вышедшая книга: {lastBook.Title} ({lastBook.Year})");
 
-            Console.WriteLine("\nРабота завершена.");
-        }
+        // Выведем все книги, отсортированные по названию
+        var sortedBooks = bookRepo.GetBooksSortedByTitle();
+        Console.WriteLine("\nКниги, отсортированные по названию:");
+        foreach (var book in sortedBooks)
+            Console.WriteLine($"{book.Title} ({book.Year})");
+
+        // Выведем всех пользователей
+        Console.WriteLine("\nПользователи:");
+        foreach (var u in userRepo.GetAll())
+            Console.WriteLine($"{u.Name} — {u.Email}");
     }
 }
